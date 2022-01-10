@@ -7,15 +7,19 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 contract SoluTokenSale is Ownable {
     enum ICOStage {
         PreICO,
-        SeedICO
+        SeedICO,
+        FinalSale
     }
 
     ICOStage public stage = ICOStage.PreICO;
 
     bool public isICOCompleted;
-    uint256 public rate = 3100000000000;
+    uint256 public rate = 312500;
     uint256 public tokenToSellInPreICO = 300000000 * 10 ** 18;
     uint256 public tokenToSellInSeedICO = 500000000 * 10 ** 18;
+
+    uint256 public tokenRaisedInPreICO = 0;
+    uint256 public tokenRaisedInSeedICO = 0;
 
     event BuyToken(address buyer, uint256 amount, uint256 token);
 
@@ -24,15 +28,16 @@ contract SoluTokenSale is Ownable {
         soluTokenAddress = _soluTokenAddres;
     }
 
-    function withdrawUnsoldToken(address preSaleAddress, address seedSaleAddress) public onlyOwner {
+    function withdrawUnsoldToken(address preSaleAddress, address seedSaleAddress) public payable onlyOwner {
         require(isICOCompleted,'ICO is not complete yet');
 
-        IERC20 soluTokenContract = IERC20(soluTokenAddress);
         if(tokenToSellInPreICO > 0) {
-            soluTokenContract.transfer(preSaleAddress, tokenToSellInPreICO);
+            IERC20 soluToken = IERC20(soluTokenAddress);
+            soluToken.transfer(preSaleAddress, tokenToSellInPreICO);
         }
         if(tokenToSellInSeedICO > 0) {
-            soluTokenContract.transfer(seedSaleAddress, tokenToSellInSeedICO);
+        IERC20 soluTokenC = IERC20(soluTokenAddress);
+            soluTokenC.transfer(seedSaleAddress, tokenToSellInSeedICO);
         }
     }
 
@@ -41,12 +46,15 @@ contract SoluTokenSale is Ownable {
             stage = ICOStage.PreICO;
         } else if (uint(ICOStage.SeedICO) == _stage) {
             stage = ICOStage.SeedICO;
+        } else if(uint(ICOStage.FinalSale) == _stage) {
+            stage = ICOStage.FinalSale;
+            isICOCompleted = true;
         }
 
         if(stage == ICOStage.PreICO) {
-            rate = 3100000000000;           // price in wei for 1 SLT
+            rate = 312500;
         } else if (stage == ICOStage.SeedICO) {
-            rate = 6200000000000;           // price in wei for 1 SLT
+            rate = 625000;
         }
     }
 
@@ -59,12 +67,12 @@ contract SoluTokenSale is Ownable {
         require(msg.value > 0, 'Amount must be Greater than ZERO');
 
         
-        uint256 tokenToBuy = (msg.value * 10 ** 18) / rate;
+        uint256 tokenToBuy = msg.value * rate;
         
         if(stage == ICOStage.PreICO){
-            require(tokenToSellInPreICO > 0, 'PreICO Limit Exceed');
+            require((tokenToSellInPreICO - tokenToBuy) >= 0, 'PreICO Limit Exceed');
         } else if(stage == ICOStage.SeedICO){
-            require(tokenToSellInSeedICO > 0, 'SeedICO Limit Exceed');
+            require((tokenToSellInSeedICO - tokenToBuy) >= 0, 'SeedICO Limit Exceed');
         }
         
         IERC20 soluTokenContract = IERC20(soluTokenAddress);

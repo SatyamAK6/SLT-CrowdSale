@@ -86,5 +86,11 @@ contract SoluTokenSale is Ownable {
             tokenToSellInSeedICO -= tokenToBuy;
         }
         
+        if(tokenToSellInPreICO == 0) {
+            setCrowdsaleStage(1);
+        } else if(tokenToSellInSeedICO == 0){
+            setICOCompleted(true);
+        }
+        
     }
 }

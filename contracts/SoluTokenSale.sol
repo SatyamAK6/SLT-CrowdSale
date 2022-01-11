@@ -60,11 +60,11 @@ contract SoluTokenSale is Ownable {
         uint256 tokenToBuy = msg.value * rate;
         
         if(stage == ICOStage.PreICO){
-            require((tokenToSellInPreICO - tokenToBuy) >= 0, "PreICO Limit Exceed");
+            require((int256(tokenToSellInPreICO) - int256(tokenToBuy)) >= 0, "PreICO Limit Exceed");
         } else if(stage == ICOStage.SeedICO){
-            require((tokenToSellInSeedICO - tokenToBuy) >= 0, "SeedICO Limit Exceed");
+            require((int256(tokenToSellInSeedICO) - int256(tokenToBuy)) >= 0, "SeedICO Limit Exceed");
         } else if(stage == ICOStage.FinalSale) {
-            require((tokenToSellInFinalSale - tokenToBuy) >= 0, "Not enough Token");
+            require((int256(tokenToSellInFinalSale) - int256(tokenToBuy)) >= 0, "Not enough Token");
         }
         
         IERC20 soluTokenContract = IERC20(soluTokenAddress);

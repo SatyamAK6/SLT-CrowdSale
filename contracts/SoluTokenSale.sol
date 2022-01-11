@@ -17,9 +17,7 @@ contract SoluTokenSale is Ownable {
     uint256 public rate = 312500;
     uint256 public tokenToSellInPreICO = 300000000 * 10 ** 18;
     uint256 public tokenToSellInSeedICO = 500000000 * 10 ** 18;
-
-    uint256 public tokenRaisedInPreICO = 0;
-    uint256 public tokenRaisedInSeedICO = 0;
+    uint256 public tokenToSellInFinalSale = 0;
 
     event BuyToken(address buyer, uint256 amount, uint256 token);
 
@@ -28,56 +26,50 @@ contract SoluTokenSale is Ownable {
         soluTokenAddress = _soluTokenAddres;
     }
 
-    function withdrawUnsoldToken(address preSaleAddress, address seedSaleAddress) public payable onlyOwner {
-        require(isICOCompleted,'ICO is not complete yet');
-
-        if(tokenToSellInPreICO > 0) {
-            IERC20 soluToken = IERC20(soluTokenAddress);
-            soluToken.transfer(preSaleAddress, tokenToSellInPreICO);
-        }
-        if(tokenToSellInSeedICO > 0) {
-        IERC20 soluTokenC = IERC20(soluTokenAddress);
-            soluTokenC.transfer(seedSaleAddress, tokenToSellInSeedICO);
-        }
-    }
-
-    function setCrowdsaleStage(uint _stage) public onlyOwner {
+    function _SetCrowdsaleStage(uint _stage) private {
         if(uint(ICOStage.PreICO) == _stage) {
             stage = ICOStage.PreICO;
         } else if (uint(ICOStage.SeedICO) == _stage) {
             stage = ICOStage.SeedICO;
         } else if(uint(ICOStage.FinalSale) == _stage) {
             stage = ICOStage.FinalSale;
-            isICOCompleted = true;
+            tokenToSellInFinalSale = tokenToSellInPreICO + tokenToSellInSeedICO;
         }
 
         if(stage == ICOStage.PreICO) {
             rate = 312500;
         } else if (stage == ICOStage.SeedICO) {
-            rate = 625000;
+            rate = 156250;
+        } else if (stage == ICOStage.FinalSale) {
+            rate = 78125;
         }
     }
 
-    function setICOCompleted(bool complete) public onlyOwner {
+    function updateState(uint _stage) public onlyOwner {
+        _SetCrowdsaleStage(_stage);
+    }
+
+    function setICOCompleted(bool complete) private {
         isICOCompleted = complete;
     }
 
     function buy() public payable {
-        require(!isICOCompleted, 'ICO Completed');
-        require(msg.value > 0, 'Amount must be Greater than ZERO');
-
+        require(!isICOCompleted, "ICO is Completed");
+        require(msg.value > 0, "Amount must be Greater than ZERO");
         
         uint256 tokenToBuy = msg.value * rate;
         
         if(stage == ICOStage.PreICO){
-            require((tokenToSellInPreICO - tokenToBuy) >= 0, 'PreICO Limit Exceed');
+            require((tokenToSellInPreICO - tokenToBuy) >= 0, "PreICO Limit Exceed");
         } else if(stage == ICOStage.SeedICO){
-            require((tokenToSellInSeedICO - tokenToBuy) >= 0, 'SeedICO Limit Exceed');
+            require((tokenToSellInSeedICO - tokenToBuy) >= 0, "SeedICO Limit Exceed");
+        } else if(stage == ICOStage.FinalSale) {
+            require((tokenToSellInFinalSale - tokenToBuy) >= 0, "Not enough Token");
         }
         
         IERC20 soluTokenContract = IERC20(soluTokenAddress);
         bool test = soluTokenContract.transfer(msg.sender, tokenToBuy);
-        require(test,'Something went wrong');
+        require(test,"Something went wrong, Token not Transffered");
         emit BuyToken(msg.sender, msg.value, tokenToBuy);
         
         if(stage == ICOStage.PreICO){
@@ -86,9 +78,11 @@ contract SoluTokenSale is Ownable {
             tokenToSellInSeedICO -= tokenToBuy;
         }
         
-        if(tokenToSellInPreICO == 0) {
-            setCrowdsaleStage(1);
-        } else if(tokenToSellInSeedICO == 0){
+        if(stage == ICOStage.PreICO && (tokenToSellInPreICO == 0 || tokenToSellInPreICO < rate)) {
+            _SetCrowdsaleStage(uint(ICOStage.SeedICO));
+        } else if(stage == ICOStage.SeedICO && (tokenToSellInSeedICO == 0 || tokenToSellInSeedICO < rate)){
+            _SetCrowdsaleStage(uint(ICOStage.FinalSale));
+        } else if(stage == ICOStage.FinalSale && (tokenToSellInFinalSale == 0 || tokenToSellInFinalSale < rate)){
             setICOCompleted(true);
         }
         
